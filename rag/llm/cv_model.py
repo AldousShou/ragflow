@@ -27,14 +27,17 @@ from io import BytesIO
 from api.utils import get_uuid
 from api.utils.file_utils import get_project_base_directory
 
+from evaluation.log import log_vars
 
 class Base(ABC):
     def __init__(self, key, model_name):
         pass
 
+    @log_vars
     def describe(self, image, max_tokens=300):
         raise NotImplementedError("Please implement encode method!")
 
+    @log_vars
     def image2base64(self, image):
         if isinstance(image, bytes):
             return base64.b64encode(image).decode("utf-8")
@@ -47,6 +50,7 @@ class Base(ABC):
             image.save(buffered, format="PNG")
         return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
+    @log_vars
     def prompt(self, b64):
         return [
             {
