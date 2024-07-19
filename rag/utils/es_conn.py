@@ -20,8 +20,8 @@ class ESConnection:
         self.info = {}
         self.conn()
         self.idxnm = settings.ES.get("index_name", "")
-        if not self.es.ping():
-            raise Exception("Can't connect to ES cluster")
+        # if not self.es.ping():
+        #     raise Exception("Can't connect to ES cluster")
 
     def conn(self):
         for _ in range(10):

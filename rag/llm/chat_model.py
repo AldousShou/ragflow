@@ -24,7 +24,7 @@ from volcengine.maas.v2 import MaasService
 from rag.nlp import is_english
 from rag.utils import num_tokens_from_string
 
-from evaluation.log import log_vars
+# from evaluation.log import log_vars
 
 
 class Base(ABC):
@@ -32,7 +32,7 @@ class Base(ABC):
         self.client = OpenAI(api_key=key, base_url=base_url)
         self.model_name = model_name
 
-    @log_vars
+    # @log_vars
     def chat(self, system, history, gen_conf):
         if system:
             history.insert(0, {"role": "system", "content": system})

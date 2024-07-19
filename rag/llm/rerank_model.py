@@ -25,7 +25,7 @@ import numpy as np
 from api.utils.file_utils import get_home_cache_dir
 from rag.utils import num_tokens_from_string, truncate
 
-from evaluation.log import log_vars
+# from evaluation.log import log_vars
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -34,7 +34,7 @@ class Base(ABC):
     def __init__(self, key, model_name):
         pass
 
-    @log_vars
+    # @log_vars
     def similarity(self, query: str, texts: list):
         raise NotImplementedError("Please implement encode method!")
 

@@ -149,6 +149,14 @@ def chat(dialog, messages, stream=True, **kwargs):
     kwargs["knowledge"] = "\n".join(knowledges)
     gen_conf = dialog.llm_setting
 
+    # chat_logger1 = getLogger("chat_test")
+    # chat_logger1.info(
+    #     "{}->{}".format(" ".join(questions), "\n->".join(knowledges)))
+    # handler = logging.StreamHandler()
+    # chat_logger1.addHandler(handler)
+    print(questions)
+    print(knowledges)
+
     msg = [{"role": "system", "content": prompt_config["system"].format(**kwargs)}]
     msg.extend([{"role": m["role"], "content": m["content"]}
                 for m in messages if m["role"] != "system"])
