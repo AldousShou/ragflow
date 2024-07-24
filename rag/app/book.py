@@ -137,9 +137,10 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
         sections = [s.split("@") for s, _ in sections]
         sections = [(pr[0], "@" + pr[1]) if len(pr) == 2 else (pr[0], '') for pr in sections ]
         chunks = naive_merge(
-            sections, kwargs.get(
-                "chunk_token_num", 256), kwargs.get(
-                "delimer", "\n。；！？"))
+            sections=sections,
+            chunk_token_num=kwargs.get("chunk_token_num", 256),
+            chunk_overlap_num=kwargs.get('chunk_overlap_num', 32),
+            delimiter=kwargs.get("delimiter", "\n。；！？"))
 
     # is it English
     # is_english(random_choices([t for t, _ in sections], k=218))

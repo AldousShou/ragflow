@@ -10,6 +10,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
+import joblib
+from langchain_text_splitters import MarkdownHeaderTextSplitter
 from tika import parser
 from io import BytesIO
 from docx import Document
@@ -18,11 +20,16 @@ import re
 from deepdoc.parser.pdf_parser import PlainParser
 from rag.nlp import rag_tokenizer, naive_merge, tokenize_table, tokenize_chunks, find_codec, concat_img, naive_merge_docx, tokenize_chunks_docx
 from deepdoc.parser import PdfParser, ExcelParser, DocxParser, HtmlParser, JsonParser, MarkdownParser
-from rag.settings import cron_logger
+from rag.settings import cron_logger, USE_CUSTOM_MD_CHUNKER
 from rag.utils import num_tokens_from_string
 from PIL import Image
 from functools import reduce
 from markdown import markdown
+from typing import TYPE_CHECKING
+
+# if TYPE_CHECKING:
+#     from langchain_text_splitters import MarkdownHeaderTextSplitter
+
 class Docx(DocxParser):
     def __init__(self):
         pass
@@ -154,9 +161,46 @@ class Markdown(MarkdownParser):
                 sections.append((sec[int(len(sec)/2):], ""))
             else:
                 sections.append((sec, ""))
-        print(tables)
+        print(sections)
         for table in tables:
             tbls.append(((None, markdown(table, extensions=['markdown.extensions.tables'])), ""))
+        return sections, tbls
+
+
+class StructuredMarkdown(MarkdownParser):
+    def __call__(self, filename, binary=None):
+        txt = ""
+        tbls = []
+        if binary:
+            encoding = find_codec(binary)
+            txt = binary.decode(encoding, errors="ignore")
+        else:
+            with open(filename, "r") as f:
+                txt = f.read()
+        remainder, tables = self.extract_tables_and_remainder(f'{txt}\n')
+        sections = []
+        tbls = []
+
+        # custom split
+
+        splitter = MarkdownHeaderTextSplitter(
+            headers_to_split_on=[('#', '#'), ('##', '##')],
+            return_each_line=True,
+            strip_headers=True
+        )
+        splits = splitter.split_text(remainder)
+        splits = [
+            (
+                ' '.join([f'{k}: {v}' for k, v in split.metadata.items()]),
+                split.page_content
+            )
+            for split in splits
+        ]
+        sections = splits
+
+        for table in tables:
+            tbls.append(((None, markdown(table, extensions=['markdown.extensions.tables'])), ""))
+
         return sections, tbls
 
 
@@ -235,7 +279,11 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
     
     elif re.search(r"\.(md|markdown)$", filename, re.IGNORECASE):
         callback(0.1, "Start to parse.")
-        sections, tbls = Markdown(int(parser_config.get("chunk_token_num", 128)))(filename, binary)
+        if not USE_CUSTOM_MD_CHUNKER:
+            sections, tbls = Markdown(int(parser_config.get("chunk_token_num", 128)))(filename, binary)
+        else:
+            sections, tbls = StructuredMarkdown(int(parser_config.get("chunk_token_num", 128)))(filename, binary)
+        joblib.dump(sections, 'sections.pkl')
         res = tokenize_table(tbls, doc, eng)
         callback(0.8, "Finish parsing.")
 
@@ -265,9 +313,11 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
 
     st = timer()
     chunks = naive_merge(
-        sections, int(parser_config.get(
-            "chunk_token_num", 128)), parser_config.get(
-            "delimiter", "\n!?。；！？"))
+        sections,
+        int(parser_config.get("chunk_token_num", 128)),
+        int(parser_config.get("chunk_overlap_num", 32)),
+        parser_config.get("delimiter", "\n!?。；！？")
+    )
 
     res.extend(tokenize_chunks(chunks, doc, eng, pdf_parser))
     cron_logger.info("naive_merge({}): {}".format(filename, timer() - st))

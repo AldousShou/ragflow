@@ -472,46 +472,22 @@ def hierarchical_merge(bull, sections, depth):
     return res
 
 
-def naive_merge(sections, chunk_token_num=128, delimiter="\n。；！？"):
+def naive_merge(sections, chunk_token_num=128, chunk_overlap_num=32, delimiter="\n。；！？"):
     if not sections:
         return []
     if isinstance(sections[0], type("")):
         sections = [(s, "") for s in sections]
     cks = [""]
-    tk_nums = [0]
 
-    def add_chunk(t, pos):
-        nonlocal cks, tk_nums, delimiter
-        tnum = num_tokens_from_string(t)
-        if tnum < 8:
-            pos = ""
-        # Ensure that the length of the merged chunk does not exceed chunk_token_num  
-        if tk_nums[-1] > chunk_token_num:
-
-            if t.find(pos) < 0:
-                t += pos
-            cks.append(t)
-            tk_nums.append(tnum)
-        else:
-            if cks[-1].find(pos) < 0:
-                t += pos
-            cks[-1] += t
-            tk_nums[-1] += tnum
-
-    for sec, pos in sections:
-        add_chunk(sec, pos)
-        continue
-        s, e = 0, 1
-        while e < len(sec):
-            if sec[e] in delimiter:
-                add_chunk(sec[s: e + 1], pos)
-                s = e + 1
-                e = s + 1
-            else:
-                e += 1
-        if s < e:
-            add_chunk(sec[s: e], pos)
-
+    for header, content in sections:  # todo: 使用 delimiter 分割句子
+        doc_to_append = f'{header} \n {content}'
+        if len(cks[-1]) + len(doc_to_append) > chunk_token_num:
+            cks.append('')
+        cks[-1] += doc_to_append
+        while len(cks[-1]) > chunk_token_num:
+            _doc = cks[-1][chunk_token_num-chunk_overlap_num:]
+            cks[-1] = cks[-1][:chunk_token_num]
+            cks.append(_doc)
     return cks
 
 
