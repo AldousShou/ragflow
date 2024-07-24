@@ -48,6 +48,8 @@ cron_logger.setLevel(20)
 chunk_logger = getLogger("chunk_logger")
 database_logger = getLogger("database")
 
+USE_CUSTOM_MD_CHUNKER = True
+
 SVR_QUEUE_NAME = "rag_flow_svr_queue"
 SVR_QUEUE_RETENTION = 60*60
 SVR_QUEUE_MAX_LEN = 1024
