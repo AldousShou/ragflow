@@ -16,7 +16,7 @@
 
 import random
 from collections import Counter
-
+from typing import Iterator, List
 from rag.utils import num_tokens_from_string
 from . import rag_tokenizer
 import re
@@ -472,47 +472,48 @@ def hierarchical_merge(bull, sections, depth):
     return res
 
 
-def naive_merge(sections, chunk_token_num=128, delimiter="\n。；！？"):
+def naive_merge(sections, chunk_token_num=128, chunk_overlap_num=32, delimiter="\n。；！？"):
     if not sections:
         return []
-    if isinstance(sections[0], type("")):
+    if isinstance(sections[0], str):
         sections = [(s, "") for s in sections]
-    cks = [""]
-    tk_nums = [0]
 
-    def add_chunk(t, pos):
-        nonlocal cks, tk_nums, delimiter
-        tnum = num_tokens_from_string(t)
-        if tnum < 8:
-            pos = ""
-        # Ensure that the length of the merged chunk does not exceed chunk_token_num  
-        if tk_nums[-1] > chunk_token_num:
+    chunk_safe_token_num = max(chunk_token_num * 0.8, chunk_token_num - chunk_overlap_num)
 
-            if t.find(pos) < 0:
-                t += pos
-            cks.append(t)
-            tk_nums.append(tnum)
-        else:
-            if cks[-1].find(pos) < 0:
-                t += pos
-            cks[-1] += t
-            tk_nums[-1] += tnum
+    def iter_sentences(paragraph: str) -> Iterator[str]:
+        nonlocal delimiter
+        if not paragraph:
+            yield ''
+            return
 
-    for sec, pos in sections:
-        add_chunk(sec, pos)
-        continue
-        s, e = 0, 1
-        while e < len(sec):
-            if sec[e] in delimiter:
-                add_chunk(sec[s: e + 1], pos)
-                s = e + 1
-                e = s + 1
+        last_idx = 0
+        for match in re.finditer(delimiter, paragraph):
+            sentence = paragraph[last_idx:match.end()]
+            yield sentence
+            last_idx = match.end()
+
+        if last_idx < len(paragraph):
+            yield paragraph[last_idx:]
+        return
+
+    chunks = [f'{sections[0][0]}\n']
+    window_sentences: List[str] = []  # used to store overlapping sentences
+    for header, contents in sections:
+        for sentence in iter_sentences(contents):
+            if len(chunks[-1]) + len(sentence) > chunk_safe_token_num:
+                chunks.append(f'{header}\n ...')
+                chunks[-1] += ''.join(window_sentences)  # overlapping sentences
+            chunks[-1] += sentence
+
+            if len(sentence) > chunk_overlap_num:
+                window_sentences.clear()
             else:
-                e += 1
-        if s < e:
-            add_chunk(sec[s: e], pos)
+                while (sum(len(s) for s in window_sentences)) + len(sentence) > chunk_overlap_num:
+                    window_sentences.pop(0)
+                window_sentences.append(sentence)
 
-    return cks
+    print(chunks)
+    return chunks
 
 
 def docx_question_level(p, bull = -1):

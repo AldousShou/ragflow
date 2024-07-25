@@ -114,7 +114,9 @@ def collect():
         cron_logger.info("Task {} has been canceled.".format(msg["id"]))
         return pd.DataFrame()
     tasks = TaskService.get_tasks(msg["id"])
-    assert tasks, "{} empty task!".format(msg["id"])
+    if tasks is None or not len(tasks):
+        return pd.DataFrame()
+    # assert tasks, "{} empty task!".format(msg["id"])
     tasks = pd.DataFrame(tasks)
     if msg.get("type", "") == "raptor":
         tasks["task_type"] = "raptor"

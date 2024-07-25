@@ -138,7 +138,7 @@ class RedisDB:
             if 'key' in str(e):
                 pass
             else:
-                logging.warning("[EXCEPTION]consumer" + str(queue_name) + "||" + str(e))
+                logging.warning("[EXCEPTION]consumer " + str(queue_name) + "||" + str(e))
         return None
 
 
