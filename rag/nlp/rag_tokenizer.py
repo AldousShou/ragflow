@@ -30,12 +30,22 @@ from api.utils.file_utils import get_project_base_directory
 
 class RagTokenizer:
     def key_(self, line):
+        """
+        返回顺序的文本行，删除str首尾的b"和"@liming
+        """
         return str(line.lower().encode("utf-8"))[2:-1]
 
     def rkey_(self, line):
+        """
+        返回逆序的文本行，删除逆序str首尾的b"和"@liming
+        """
         return str(("DD" + (line[::-1].lower())).encode("utf-8"))[2:-1]
 
+   
     def loadDict_(self, fnm):
+        """
+        加载文本文件并生成前缀树，用于高效存储和搜索字符串前缀，如/rag/res内的txt文件@liming
+        """
         print("[HUQIE]:Build trie", fnm, file=sys.stderr)
         try:
             of = open(fnm, "r", encoding='utf-8')
@@ -46,9 +56,12 @@ class RagTokenizer:
                 line = re.sub(r"[\r\n]+", "", line)
                 line = re.split(r"[ \t]", line)
                 k = self.key_(line[0])
+                # 计算F值，根据字符频率获得评分结果@liming
                 F = int(math.log(float(line[1]) / self.DENOMINATOR) + .5)
                 if k not in self.trie_ or self.trie_[k][0] < F:
+                    # 在前缀树中的顺序字符字典中存储元组（F值和【标识】）@liming
                     self.trie_[self.key_(line[0])] = (F, line[2])
+                # 在前缀树中的逆序字符字典中存储1@liming
                 self.trie_[self.rkey_(line[0])] = 1
             self.trie_.save(fnm + ".trie")
             of.close()
@@ -58,6 +71,7 @@ class RagTokenizer:
     def __init__(self, debug=False):
         self.DEBUG = debug
         self.DENOMINATOR = 1000000
+        # 创建了一个可以存储任意可打印字符的前缀树，这个前缀树将用于快速查找和匹配用户输入或文本中的特定模式@liming
         self.trie_ = datrie.Trie(string.printable)
         self.DIR_ = os.path.join(get_project_base_directory(), "rag/res", "huqie")
 
@@ -153,18 +167,29 @@ class RagTokenizer:
         return self.dfs_(chars, s + 1, preTks, tkslist)
 
     def freq(self, tk):
+        """
+        根据字符，从前缀树中存储的值里恢复freq(frequency)单词频率@liming
+        """
         k = self.key_(tk)
         if k not in self.trie_:
             return 0
         return int(math.exp(self.trie_[k][0]) * self.DENOMINATOR + 0.5)
 
+    
     def tag(self, tk):
+        """
+        根据字符，从前缀树中获得标签@liming
+        """
         k = self.key_(tk)
         if k not in self.trie_:
             return ""
         return self.trie_[k][1]
 
+    
     def score_(self, tfts):
+        """
+        计算【分数】@liming
+        """
         B = 30
         F, L, tks = 0, 0, []
         for tk, (freq, tag) in tfts:
@@ -177,7 +202,11 @@ class RagTokenizer:
             print("[SC]", tks, len(tks), L, F, B / len(tks) + L + F)
         return tks, B / len(tks) + L + F
 
+    
     def sortTks_(self, tkslist):
+        """
+        将tokens列表，根据【分数】进行排序@liming
+        """
         res = []
         for tfts in tkslist:
             tks, s = self.score_(tfts)
@@ -209,6 +238,9 @@ class RagTokenizer:
         return " ".join(res)
 
     def maxForward_(self, line):
+        """
+        【最大前缀匹配】@liming
+        """
         res = []
         s = 0
         while s < len(line):
@@ -233,6 +265,9 @@ class RagTokenizer:
         return self.score_(res)
 
     def maxBackward_(self, line):
+        """
+        【最大后缀匹配】@liming
+        """
         res = []
         s = len(line) - 1
         while s >= 0:
@@ -259,6 +294,9 @@ class RagTokenizer:
         return [self.stemmer.stem(self.lemmatizer.lemmatize(t)) if re.match(r"[a-zA-Z_-]+$", t) else t for t in tks]
 
     def tokenize(self, line):
+        """
+        ？
+        """
         line = self._strQ2B(line).lower()
         line = self._tradi2simp(line)
         zh_num = len([1 for c in line if is_chinese(c)])

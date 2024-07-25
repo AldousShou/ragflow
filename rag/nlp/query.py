@@ -47,6 +47,9 @@ class EsQueryer:
 
     @staticmethod
     def rmWWW(txt):
+        """
+        删除疑问词@liming
+        """
         patts = [
             (r"是*(什么样的|哪家|一下|那家|请问|啥样|咋样了|什么时候|何时|何地|何人|是否|是不是|多少|哪里|怎么|哪儿|怎么样|如何|哪些|是啥|啥是|啊|吗|呢|吧|咋|什么|有没有|呀)是*", ""),
             (r"(^| )(what|who|how|which|where|why)('re|'s)? ", " "),
@@ -57,6 +60,9 @@ class EsQueryer:
         return txt
 
     def question(self, txt, tbl="qa", min_match="60%"):
+        """
+        【ElasiticSearch关键词检索】@liming
+        """
         txt = re.sub(
             r"[ :\r\n\t,，。？?/`!！&\^%%]+",
             " ",
@@ -152,15 +158,25 @@ class EsQueryer:
 
     def hybrid_similarity(self, avec, bvecs, atks, btkss, tkweight=0.3,
                           vtweight=0.7):
+        """
+        计算混合相似度（嵌入向量的余弦相似度、关键词的相似度）@liming
+        """
         from sklearn.metrics.pairwise import cosine_similarity as CosineSimilarity
         import numpy as np
+        # 计算余弦相似度
         sims = CosineSimilarity([avec], bvecs)
         tksim = self.token_similarity(atks, btkss)
         return np.array(sims[0]) * vtweight + \
             np.array(tksim) * tkweight, tksim, sims[0]
 
     def token_similarity(self, atks, btkss):
+        """
+        关键词相似度计算@liming
+        """
         def toDict(tks):
+            """
+            根据传入的tks字符串，返回关键词:【权重】的字典@liming
+            """
             d = {}
             if isinstance(tks, str):
                 tks = tks.split(" ")
@@ -175,6 +191,9 @@ class EsQueryer:
         return [self.similarity(atks, btks) for btks in btkss]
 
     def similarity(self, qtwt, dtwt):
+        """
+        关键词相似度计算的子过程@liming
+        """
         if isinstance(dtwt, type("")):
             dtwt = {t: w for t, w in self.tw.weights(self.tw.split(dtwt))}
         if isinstance(qtwt, type("")):

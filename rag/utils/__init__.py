@@ -71,7 +71,7 @@ def findMaxTm(fnm):
         pass
     return m
 
-
+# 使用gpt-3.5的分词器(Tokenizer)【"你好"->"2,15"】
 encoder = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
 def num_tokens_from_string(string: str) -> int:

@@ -25,6 +25,9 @@ from api.utils.file_utils import get_project_base_directory
 
 class Dealer:
     def __init__(self):
+        """
+        生成停止词、敏感词过滤字典@liming
+        """
         self.stop_words = set(["请问",
                                "您",
                                "你",
@@ -80,6 +83,7 @@ class Dealer:
         fnm = os.path.join(get_project_base_directory(), "rag/res")
         self.ne, self.df = {}, {}
         try:
+            # 打开本地的敏感词json并写入ne对象
             self.ne = json.load(open(os.path.join(fnm, "ner.json"), "r"))
         except Exception as e:
             print("[WARNING] Load ner.json FAIL!")
@@ -89,6 +93,9 @@ class Dealer:
             print("[WARNING] Load term.freq FAIL!")
 
     def pretoken(self, txt, num=False, stpwd=True):
+        """
+        删除特殊字符、数符并对文本分词，返回分词结果列表@liming
+        """
         patt = [
             r"[~—\t @#%!<>,\.\?\":;'\{\}\[\]_=\(\)\|，。？》•●○↓《；‘’：“”【¥ 】…￥！、·（）×`&\\/「」\\]"
         ]
@@ -113,6 +120,9 @@ class Dealer:
         return res
 
     def tokenMerge(self, tks):
+        """
+        ？
+        """
         def oneTerm(t): return len(t) == 1 or re.match(r"[0-9a-z]{1,2}$", t)
 
         res, i = [], 0
@@ -159,12 +169,18 @@ class Dealer:
         return tks
 
     def weights(self, tks):
+        """
+        处理并返回(关键词、权重)的元组列表@liming
+        """
         def skill(t):
             if t not in self.sk:
                 return 1
             return 6
 
         def ner(t):
+            """
+            返回字符t的【权值】（意义不明）@liming
+            """
             if re.match(r"[0-9,.]{2,}$", t):
                 return 2
             if re.match(r"[a-z]{1,2}$", t):
@@ -176,6 +192,9 @@ class Dealer:
             return m[self.ne[t]]
 
         def postag(t):
+            """
+            返回字符t的【权值】（意义不明）@liming
+            """
             t = rag_tokenizer.tag(t)
             if t in set(["r", "c", "d"]):
                 return 0.3
@@ -188,6 +207,9 @@ class Dealer:
             return 1
 
         def freq(t):
+            """
+            返回字符t的【权值】（意义不明）@liming
+            """
             if re.match(r"[0-9. -]{2,}$", t):
                 return 3
             s = rag_tokenizer.freq(t)
@@ -206,6 +228,9 @@ class Dealer:
             return max(s, 10)
 
         def df(t):
+            """
+            返回字符t的【权值】（意义不明）@liming
+            """
             if re.match(r"[0-9. -]{2,}$", t):
                 return 5
             if t in self.df:
