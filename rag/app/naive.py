@@ -25,10 +25,8 @@ from rag.utils import num_tokens_from_string
 from PIL import Image
 from functools import reduce
 from markdown import markdown
-from typing import TYPE_CHECKING
+from typing import Iterator
 
-# if TYPE_CHECKING:
-#     from langchain_text_splitters import MarkdownHeaderTextSplitter
 
 class Docx(DocxParser):
     def __init__(self):
@@ -161,7 +159,7 @@ class Markdown(MarkdownParser):
                 sections.append((sec[int(len(sec)/2):], ""))
             else:
                 sections.append((sec, ""))
-        print(sections)
+        # print(sections)
         for table in tables:
             tbls.append(((None, markdown(table, extensions=['markdown.extensions.tables'])), ""))
         return sections, tbls
@@ -178,7 +176,6 @@ class StructuredMarkdown(MarkdownParser):
             with open(filename, "r") as f:
                 txt = f.read()
         remainder, tables = self.extract_tables_and_remainder(f'{txt}\n')
-        sections = []
         tbls = []
 
         # custom split
@@ -196,7 +193,28 @@ class StructuredMarkdown(MarkdownParser):
             )
             for split in splits
         ]
-        sections = splits
+
+        sections = []
+
+        def iter_sentences(paragraph: str) -> Iterator[str]:
+            delimiter = '[\n!?。；！？]'
+            if not paragraph:
+                yield ''
+                return
+
+            last_idx = 0
+            for match in re.finditer(delimiter, paragraph):
+                sentence = paragraph[last_idx:match.end()]
+                yield sentence
+                last_idx = match.end()
+
+            if last_idx < len(paragraph):
+                yield paragraph[last_idx:]
+            return
+
+        for header, contents in splits:
+            for sentence in iter_sentences(contents):
+                sections.append((header, sentence))
 
         for table in tables:
             tbls.append(((None, markdown(table, extensions=['markdown.extensions.tables'])), ""))
@@ -283,7 +301,7 @@ def chunk(filename, binary=None, from_page=0, to_page=100000,
             sections, tbls = Markdown(int(parser_config.get("chunk_token_num", 128)))(filename, binary)
         else:
             sections, tbls = StructuredMarkdown(int(parser_config.get("chunk_token_num", 128)))(filename, binary)
-        joblib.dump(sections, 'sections.pkl')
+        # joblib.dump(sections, 'sections.pkl')
         res = tokenize_table(tbls, doc, eng)
         callback(0.8, "Finish parsing.")
 
