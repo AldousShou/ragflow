@@ -70,6 +70,7 @@ export const useFetchFlowList = (): { data: IFlow[]; loading: boolean } => {
   const { data, isFetching: loading } = useQuery({
     queryKey: ['fetchFlowList'],
     initialData: [],
+    gcTime: 0,
     queryFn: async () => {
       const { data } = await flowService.listCanvas();
 
@@ -96,6 +97,7 @@ export const useFetchFlow = (): {
     refetchOnReconnect: false,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
+    gcTime: 0,
     queryFn: async () => {
       const { data } = await flowService.getCanvas({}, id);
 
