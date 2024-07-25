@@ -32,6 +32,7 @@ from api.utils.api_utils import get_json_result
 from rag.nlp import search
 from rag.utils.es_conn import ELASTICSEARCH
 
+# 前端与知识库（KnowledgeBase）交互的接口
 
 @manager.route('/create', methods=['post'])
 @login_required

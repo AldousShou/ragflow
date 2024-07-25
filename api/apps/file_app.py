@@ -36,6 +36,7 @@ from rag.nlp import search
 from rag.utils.es_conn import ELASTICSEARCH
 from rag.utils.minio_conn import MINIO
 
+# 前端与文件操作交互的接口
 
 @manager.route('/upload', methods=['POST'])
 @login_required

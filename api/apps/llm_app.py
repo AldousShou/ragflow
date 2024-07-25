@@ -22,6 +22,7 @@ from api.db.db_models import TenantLLM
 from api.utils.api_utils import get_json_result
 from rag.llm import EmbeddingModel, ChatModel, RerankModel
 
+# 前端与LLM（大模型）交互的接口
 
 @manager.route('/factories', methods=['GET'])
 @login_required

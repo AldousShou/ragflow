@@ -24,6 +24,7 @@ from api.utils.api_utils import server_error_response, get_data_error_result, va
 from api.utils import get_uuid
 from api.utils.api_utils import get_json_result
 
+# 会话参数管理，设置对话参数（Prompt、top_n、top_k...）
 
 @manager.route('/set', methods=['POST'])
 @login_required

@@ -22,6 +22,7 @@ from api.utils import get_uuid
 from api.utils.api_utils import get_json_result
 import json
 
+# 对话管理（设置、删除存档对话）
 
 @manager.route('/set', methods=['POST'])
 @login_required
@@ -61,7 +62,7 @@ def set_conversation():
     except Exception as e:
         return server_error_response(e)
 
-
+# 根据id查找会话
 @manager.route('/get', methods=['GET'])
 @login_required
 def get():
@@ -75,7 +76,7 @@ def get():
     except Exception as e:
         return server_error_response(e)
 
-
+# 根据id rm(remove)删除对话
 @manager.route('/rm', methods=['POST'])
 @login_required
 def rm():
@@ -102,7 +103,7 @@ def list_convsersation():
     except Exception as e:
         return server_error_response(e)
 
-
+# 意义不明
 @manager.route('/completion', methods=['POST'])
 @login_required
 #@validate_request("conversation_id", "messages")
