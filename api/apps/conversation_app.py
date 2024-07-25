@@ -17,6 +17,7 @@ from copy import deepcopy
 from flask import request, Response
 from flask_login import login_required
 from api.db.services.dialog_service import DialogService, ConversationService, chat
+from api.db.services.log_service import LogService
 from api.utils.api_utils import server_error_response, get_data_error_result, validate_request
 from api.utils import get_uuid
 from api.utils.api_utils import get_json_result
@@ -126,8 +127,10 @@ def completion():
         e, dia = DialogService.get_by_id(conv.dialog_id)
         if not e:
             return get_data_error_result(retmsg="Dialog not found!")
+        cid = req.get("conversation_id", 'Unavailable')
         del req["conversation_id"]
         del req["messages"]
+        LogService.save(uuid=cid, var={'comment': 'Receive Request', 'request': json.dumps(req), 'msg': json.dumps(msg)})
 
         if not conv.reference:
             conv.reference = []
@@ -154,7 +157,7 @@ def completion():
                                            ensure_ascii=False) + "\n\n"
             yield "data:"+json.dumps({"retcode": 0, "retmsg": "", "data": True}, ensure_ascii=False) + "\n\n"
 
-        if req.get("stream", True):
+        if req.get("stream", False):
             resp = Response(stream(), mimetype="text/event-stream")
             resp.headers.add_header("Cache-control", "no-cache")
             resp.headers.add_header("Connection", "keep-alive")
@@ -164,7 +167,7 @@ def completion():
 
         else:
             answer = None
-            for ans in chat(dia, msg, **req):
+            for ans in chat(dia, msg, stream=False, conversation_id=cid, **req):
                 answer = ans
                 fillin_conv(ans)
                 ConversationService.update_by_id(conv.id, conv.to_dict())

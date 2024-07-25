@@ -29,6 +29,7 @@ from rag.nlp import keyword_extraction
 from rag.nlp.search import index_name
 from rag.utils import rmSpace, num_tokens_from_string, encoder
 from api.utils.file_utils import get_project_base_directory
+from api.db.services.log_service import LogService
 
 
 class DialogService(CommonService):
@@ -85,7 +86,9 @@ def llm_id2llm_type(llm_id):
                 return llm["model_type"].strip(",")[-1]
                 
 
-def chat(dialog, messages, stream=True, **kwargs):
+def chat(dialog, messages, stream=True, conversation_id=None, **kwargs):
+    conversation_id = conversation_id or 'Unavailable'
+
     assert messages[-1]["role"] == "user", "The last content of this conversation is not from user."
     llm = LLMService.query(llm_name=dialog.llm_id)
     if not llm:
@@ -102,6 +105,7 @@ def chat(dialog, messages, stream=True, **kwargs):
         return {"answer": "**ERROR**: Knowledge bases use different embedding models.", "reference": []}
 
     questions = [m["content"] for m in messages if m["role"] == "user"]
+    LogService.save(uuid=conversation_id, var=json.dumps({'comment': 'Questions fetched', 'questions': questions}))
     embd_mdl = LLMBundle(dialog.tenant_id, LLMType.EMBEDDING, embd_nms[0])
     if llm_id2llm_type(dialog.llm_id) == "image2text":
         chat_mdl = LLMBundle(dialog.tenant_id, LLMType.IMAGE2TEXT, dialog.llm_id)
@@ -109,6 +113,7 @@ def chat(dialog, messages, stream=True, **kwargs):
         chat_mdl = LLMBundle(dialog.tenant_id, LLMType.CHAT, dialog.llm_id)
 
     prompt_config = dialog.prompt_config
+    LogService.save(uuid=conversation_id, var=json.dumps({'comment': 'Prompt Config', 'prompt_config': prompt_config}))
     field_map = KnowledgebaseService.get_field_map(dialog.kb_ids)
     # try to use sql if field mapping is good to go
     if field_map:
@@ -130,6 +135,7 @@ def chat(dialog, messages, stream=True, **kwargs):
     rerank_mdl = None
     if dialog.rerank_id:
         rerank_mdl = LLMBundle(dialog.tenant_id, LLMType.RERANK, dialog.rerank_id)
+    LogService.save(uuid=conversation_id, var=json.dumps({'comment': 'Reranking Model', 'use': rerank_mdl is not None}))
 
     for _ in range(len(questions) // 2):
         questions.append(questions[-1])
@@ -142,8 +148,10 @@ def chat(dialog, messages, stream=True, **kwargs):
                                         dialog.similarity_threshold,
                                         dialog.vector_similarity_weight,
                                         doc_ids=kwargs["doc_ids"].split(",") if "doc_ids" in kwargs else None,
-                                        top=dialog.top_k, aggs=False, rerank_mdl=rerank_mdl)
+                                        top=dialog.top_k, aggs=False, rerank_mdl=rerank_mdl,
+                                        conversation_id=conversation_id)
     knowledges = [ck["content_with_weight"] for ck in kbinfos["chunks"]]
+    LogService.save(uuid=conversation_id, var=json.dumps({'comment': 'Knowledge base', 'knowledges': knowledges}))
     #self-rag
     if dialog.prompt_config.get("self_rag") and not relevant(dialog.tenant_id, dialog.llm_id, questions[-1], knowledges):
         questions[-1] = rewrite(dialog.tenant_id, dialog.llm_id, questions[-1])
@@ -151,7 +159,8 @@ def chat(dialog, messages, stream=True, **kwargs):
                                         dialog.similarity_threshold,
                                         dialog.vector_similarity_weight,
                                         doc_ids=kwargs["doc_ids"].split(",") if "doc_ids" in kwargs else None,
-                                        top=dialog.top_k, aggs=False, rerank_mdl=rerank_mdl)
+                                        top=dialog.top_k, aggs=False, rerank_mdl=rerank_mdl,
+                                        conversation_id=conversation_id)
         knowledges = [ck["content_with_weight"] for ck in kbinfos["chunks"]]
 
     chat_logger.info(
@@ -176,7 +185,7 @@ def chat(dialog, messages, stream=True, **kwargs):
             max_tokens - used_token_count)
 
     def decorate_answer(answer):
-        nonlocal prompt_config, knowledges, kwargs, kbinfos
+        nonlocal prompt_config, knowledges, kwargs, kbinfos, conversation_id
         refs = []
         if knowledges and (prompt_config.get("quote", True) and kwargs.get("quote", True)):
             answer, idx = retrievaler.insert_citations(answer,
