@@ -74,6 +74,9 @@ def message_fit_in(msg, max_length=4000):
 
 
 def chat(dialog, messages, stream=True, **kwargs):
+    """
+    主函数，涵盖整个rag通信过程（嵌入、检索、self-rag、生成）
+    """
     assert messages[-1]["role"] == "user", "The last content of this conversation is not from user."
     llm = LLMService.query(llm_name=dialog.llm_id)
     if not llm:
@@ -328,6 +331,9 @@ def use_sql(question, field_map, tenant_id, chat_mdl, quota=True):
 
 
 def relevant(tenant_id, llm_id, question, contents: list):
+    """
+    相关性检验,返回True或False
+    """
     chat_mdl = LLMBundle(tenant_id, LLMType.CHAT, llm_id)
     prompt = """
         You are a grader assessing relevance of a retrieved document to a user question. 
@@ -347,6 +353,9 @@ def relevant(tenant_id, llm_id, question, contents: list):
 
 
 def rewrite(tenant_id, llm_id, question):
+    """
+    重写回答
+    """
     chat_mdl = LLMBundle(tenant_id, LLMType.CHAT, llm_id)
     prompt = """
         You are an expert at query expansion to generate a paraphrasing of a question.

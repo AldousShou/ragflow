@@ -55,6 +55,9 @@ class Dealer:
         group_docs: List[List] = None
 
     def _vector(self, txt, emb_mdl, sim=0.8, topk=10):
+        """
+        将txt嵌入为高维向量@liming
+        """
         qv, c = emb_mdl.encode_queries(txt)
         return {
             "field": "q_%d_vec" % len(qv),
@@ -66,6 +69,7 @@ class Dealer:
 
     def search(self, req, idxnm, emb_mdl=None):
         qst = req.get("question", "")
+        # 使用question进行关键词检索
         bqry, keywords = self.qryr.question(qst)
         def add_filters(bqry):
             nonlocal req

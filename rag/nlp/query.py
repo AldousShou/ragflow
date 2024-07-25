@@ -175,7 +175,7 @@ class EsQueryer:
         """
         def toDict(tks):
             """
-            根据传入的tks字符串，返回关键词:【权重】的字典@liming
+            根据传入的tks字符串,返回关键词:【权重】的字典@liming
             """
             d = {}
             if isinstance(tks, str):
