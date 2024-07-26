@@ -472,7 +472,7 @@ def hierarchical_merge(bull, sections, depth):
     return res
 
 
-def naive_merge(sections, chunk_token_num=128, chunk_overlap_num=32, delimiter="\n。；！？"):
+def naive_merge(sections, chunk_token_num=64, chunk_overlap_num=32, delimiter="\n。；！？"):
     if not sections:
         return []
     if isinstance(sections[0], str):
@@ -496,9 +496,14 @@ def naive_merge(sections, chunk_token_num=128, chunk_overlap_num=32, delimiter="
             yield paragraph[last_idx:]
         return
 
-    chunks = [f'{sections[0][0]}\n']
+    chunks = []
     window_sentences: List[str] = []  # used to store overlapping sentences
+    last_header = ''
     for header, contents in sections:
+        if len(last_header) == 0 or last_header != header:
+            chunks.append(f'{header}\n')
+            last_header = header
+
         for sentence in iter_sentences(contents):
             if len(chunks[-1]) + len(sentence) > chunk_safe_token_num:
                 chunks.append(f'{header}\n ...')
@@ -512,7 +517,7 @@ def naive_merge(sections, chunk_token_num=128, chunk_overlap_num=32, delimiter="
                     window_sentences.pop(0)
                 window_sentences.append(sentence)
 
-    print(chunks)
+    # print(chunks)
     return chunks
 
 
