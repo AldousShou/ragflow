@@ -130,7 +130,7 @@ def completion():
         cid = req.get("conversation_id", 'Unavailable')
         del req["conversation_id"]
         del req["messages"]
-        LogService.save(uuid=cid, var={'comment': 'Receive Request', 'request': json.dumps(req), 'msg': json.dumps(msg)})
+        LogService.save(uuid=cid, var={'comment': 'Receive Request', 'request': (req), 'msg': (msg)})
 
         if not conv.reference:
             conv.reference = []

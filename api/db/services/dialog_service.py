@@ -105,7 +105,7 @@ def chat(dialog, messages, stream=True, conversation_id=None, **kwargs):
         return {"answer": "**ERROR**: Knowledge bases use different embedding models.", "reference": []}
 
     questions = [m["content"] for m in messages if m["role"] == "user"]
-    LogService.save(uuid=conversation_id, var=json.dumps({'comment': 'Questions fetched', 'questions': questions}))
+    LogService.save(uuid=conversation_id, var={'comment': 'Questions fetched', 'questions': questions})
     embd_mdl = LLMBundle(dialog.tenant_id, LLMType.EMBEDDING, embd_nms[0])
     if llm_id2llm_type(dialog.llm_id) == "image2text":
         chat_mdl = LLMBundle(dialog.tenant_id, LLMType.IMAGE2TEXT, dialog.llm_id)
@@ -113,7 +113,7 @@ def chat(dialog, messages, stream=True, conversation_id=None, **kwargs):
         chat_mdl = LLMBundle(dialog.tenant_id, LLMType.CHAT, dialog.llm_id)
 
     prompt_config = dialog.prompt_config
-    LogService.save(uuid=conversation_id, var=json.dumps({'comment': 'Prompt Config', 'prompt_config': prompt_config}))
+    LogService.save(uuid=conversation_id, var={'comment': 'Prompt Config', 'prompt_config': prompt_config})
     field_map = KnowledgebaseService.get_field_map(dialog.kb_ids)
     # try to use sql if field mapping is good to go
     if field_map:
@@ -135,7 +135,7 @@ def chat(dialog, messages, stream=True, conversation_id=None, **kwargs):
     rerank_mdl = None
     if dialog.rerank_id:
         rerank_mdl = LLMBundle(dialog.tenant_id, LLMType.RERANK, dialog.rerank_id)
-    LogService.save(uuid=conversation_id, var=json.dumps({'comment': 'Reranking Model', 'use': rerank_mdl is not None}))
+    LogService.save(uuid=conversation_id, var={'comment': 'Reranking Model', 'use': rerank_mdl is not None})
 
     for _ in range(len(questions) // 2):
         questions.append(questions[-1])
@@ -151,7 +151,7 @@ def chat(dialog, messages, stream=True, conversation_id=None, **kwargs):
                                         top=dialog.top_k, aggs=False, rerank_mdl=rerank_mdl,
                                         conversation_id=conversation_id)
     knowledges = [ck["content_with_weight"] for ck in kbinfos["chunks"]]
-    LogService.save(uuid=conversation_id, var=json.dumps({'comment': 'Knowledge base', 'knowledges': knowledges}))
+    LogService.save(uuid=conversation_id, var={'comment': 'Knowledge base', 'knowledges': knowledges})
     #self-rag
     if dialog.prompt_config.get("self_rag") and not relevant(dialog.tenant_id, dialog.llm_id, questions[-1], knowledges):
         questions[-1] = rewrite(dialog.tenant_id, dialog.llm_id, questions[-1])

@@ -64,7 +64,9 @@ class Dealer:
             "query_vector": [float(v) for v in qv]
         }
 
-    def search(self, req, idxnm, emb_mdl=None):
+    def search(self, req, idxnm, emb_mdl=None, **kwargs):
+        conversation_id = kwargs.get("conversation_id", 'Unavailable')
+
         qst = req.get("question", "")
         bqry, keywords = self.qryr.question(qst)
         def add_filters(bqry):
@@ -364,8 +366,8 @@ class Dealer:
                "question": question, "vector": True, "topk": top,
                "similarity": similarity_threshold,
                "available_int": 1}
-        LogService.save(uuid=conversation_id, var=json.dumps({'comment': 'Fetch request', 'feq': req}))
-        sres = self.search(req, index_name(tenant_id), embd_mdl)
+        LogService.save(uuid=conversation_id, var={'comment': 'Fetch request', 'feq': req})
+        sres = self.search(req, index_name(tenant_id), embd_mdl, conversation_id=conversation_id)
         # LogService.save(uuid=conversation_id, var=json.dumps({'comment': 'Fetch response', 'search result': sres}))
         # search result (sres) is not JSON serializable
 
