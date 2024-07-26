@@ -212,9 +212,19 @@ class StructuredMarkdown(MarkdownParser):
                 yield paragraph[last_idx:]
             return
 
+        i = 0
+        ss = ''  # 将多个句子合并
         for header, contents in splits:
             for sentence in iter_sentences(contents):
-                sections.append((header, sentence))
+                i += 1
+                if i % 2 == 0:
+                    sections.append((header, ss))
+                    ss = ''
+                else:
+                    ss += sentence
+            if len(ss):
+                sections.append((header, ss))
+                ss = ''
 
         for table in tables:
             tbls.append(((None, markdown(table, extensions=['markdown.extensions.tables'])), ""))
