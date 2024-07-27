@@ -64,7 +64,9 @@ class Dealer:
             "query_vector": [float(v) for v in qv]
         }
 
-    def search(self, req, idxnm, emb_mdl=None):
+    def search(self, req, idxnm, emb_mdl=None, **kwargs):
+        conversation_id = kwargs.get("conversation_id", 'Unavailable')
+
         qst = req.get("question", "")
         bqry, keywords = self.qryr.question(qst)
         def add_filters(bqry):
@@ -353,7 +355,10 @@ class Dealer:
                                            rag_tokenizer.tokenize(inst).split(" "))
 
     def retrieval(self, question, embd_mdl, tenant_id, kb_ids, page, page_size, similarity_threshold=0.2,
-                  vector_similarity_weight=0.3, top=1024, doc_ids=None, aggs=True, rerank_mdl=None):
+                  vector_similarity_weight=0.3, top=1024, doc_ids=None, aggs=True, rerank_mdl=None, **kwargs):
+        from api.db.services.log_service import LogService
+        conversation_id = kwargs.get("conversation_id", 'Unavailable')
+
         ranks = {"total": 0, "chunks": [], "doc_aggs": {}}
         if not question:
             return ranks
@@ -361,7 +366,10 @@ class Dealer:
                "question": question, "vector": True, "topk": top,
                "similarity": similarity_threshold,
                "available_int": 1}
-        sres = self.search(req, index_name(tenant_id), embd_mdl)
+        LogService.save(uuid=conversation_id, var={'comment': 'Fetch request', 'feq': req})
+        sres = self.search(req, index_name(tenant_id), embd_mdl, conversation_id=conversation_id)
+        # LogService.save(uuid=conversation_id, var=json.dumps({'comment': 'Fetch response', 'search result': sres}))
+        # search result (sres) is not JSON serializable
 
         if rerank_mdl:
             sim, tsim, vsim = self.rerank_by_model(rerank_mdl,
@@ -370,6 +378,9 @@ class Dealer:
             sim, tsim, vsim = self.rerank(
                 sres, question, 1 - vector_similarity_weight, vector_similarity_weight)
         idx = np.argsort(sim * -1)
+        # LogService.save(uuid=conversation_id, var=json.dumps({'comment': 'Reranking',
+        #                                                       'sim': list(sim), 'tsim': list(tsim), 'vsim': list(vsim),
+        #                                                       'idx': list(idx)}))
 
         dim = len(sres.query_vector)
         start_idx = (page - 1) * page_size

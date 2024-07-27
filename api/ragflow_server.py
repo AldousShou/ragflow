@@ -26,6 +26,7 @@ from werkzeug.serving import run_simple
 from api.apps import app
 from api.db.runtime_config import RuntimeConfig
 from api.db.services.document_service import DocumentService
+from api.db.services.log_service import LogService
 from api.settings import (
     HOST, HTTP_PORT, access_logger, database_logger, stat_logger,
 )
@@ -75,6 +76,8 @@ if __name__ == '__main__':
     RuntimeConfig.DEBUG = args.debug
     if RuntimeConfig.DEBUG:
         stat_logger.info("run on debug mode")
+
+    LogService.save(uuid='Unavailable', var={'comment': 'initializing'})
 
     RuntimeConfig.init_env()
     RuntimeConfig.init_config(JOB_SERVER_HOST=HOST, HTTP_PORT=HTTP_PORT)
