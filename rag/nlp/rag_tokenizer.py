@@ -21,6 +21,8 @@ import os
 import re
 import string
 import sys
+
+import jieba
 from hanziconv import HanziConv
 from huggingface_hub import snapshot_download
 from nltk import word_tokenize
@@ -274,41 +276,9 @@ class RagTokenizer:
                 continue
             # print(L)
 
+            ans = list(jieba.cut_for_search(L))
+            res.append(' '.join(ans))
             # use maxforward for the first time
-            tks, s = self.maxForward_(L)
-            tks1, s1 = self.maxBackward_(L)
-            if self.DEBUG:
-                print("[FW]", tks, s)
-                print("[BW]", tks1, s1)
-
-            diff = [0 for _ in range(max(len(tks1), len(tks)))]
-            for i in range(min(len(tks1), len(tks))):
-                if tks[i] != tks1[i]:
-                    diff[i] = 1
-
-            if s1 > s:
-                tks = tks1
-
-            i = 0
-            while i < len(tks):
-                s = i
-                while s < len(tks) and diff[s] == 0:
-                    s += 1
-                if s == len(tks):
-                    res.append(" ".join(tks[i:]))
-                    break
-                if s > i:
-                    res.append(" ".join(tks[i:s]))
-
-                e = s
-                while e < len(tks) and e - s < 5 and diff[e] == 1:
-                    e += 1
-
-                tkslist = []
-                self.dfs_("".join(tks[s:e + 1]), 0, [], tkslist)
-                res.append(" ".join(self.sortTks_(tkslist)[0][0]))
-
-                i = e + 1
 
         res = " ".join(self.english_normalize_(res))
         if self.DEBUG:
@@ -317,16 +287,10 @@ class RagTokenizer:
 
     def fine_grained_tokenize(self, tks):
         tks = tks.split(" ")
-        zh_num = len([1 for c in tks if c and is_chinese(c[0])])
-        if zh_num < len(tks) * 0.2:
-            res = []
-            for tk in tks:
-                res.extend(tk.split("/"))
-            return " ".join(res)
 
         res = []
         for tk in tks:
-            if len(tk) < 3 or re.match(r"[0-9,\.-]+$", tk):
+            if len(tk) < 3 or re.match(r"[0-9,\.-]+$", tk) or is_chinese(tk[0]):
                 res.append(tk)
                 continue
             tkslist = []
