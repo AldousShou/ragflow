@@ -858,6 +858,14 @@ class CanvasTemplate(DataBaseModel):
         db_table = "canvas_template"
 
 
+class Log(DataBaseModel):
+    uuid = CharField(max_length=32, null=False)
+    var = JSONField(default={})
+
+    class Meta:
+        db_table = "log"
+
+
 def migrate_db():
         with DB.transaction():
             migrator = MySQLMigrator(DB)
