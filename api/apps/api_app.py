@@ -183,6 +183,7 @@ def completion():
         e, dia = DialogService.get_by_id(conv.dialog_id)
         if not e:
             return get_data_error_result(retmsg="Dialog not found!")
+        conversation_id = req['conversation_id']
         del req["conversation_id"]
         del req["messages"]
 
@@ -210,7 +211,7 @@ def completion():
         def stream():
             nonlocal dia, msg, req, conv
             try:
-                for ans in chat(dia, msg, True, **req):
+                for ans in chat(dia, msg, True, conversation_id=conversation_id, **req):
                     fillin_conv(ans)
                     rename_field(ans)
                     yield "data:" + json.dumps({"retcode": 0, "retmsg": "", "data": ans}, ensure_ascii=False) + "\n\n"
@@ -230,7 +231,7 @@ def completion():
             return resp
         else:
             answer = None
-            for ans in chat(dia, msg, **req):
+            for ans in chat(dia, msg, conversation_id=conversation_id, **req):
                 answer = ans
                 fillin_conv(ans)
                 API4ConversationService.append_message(conv.id, conv.to_dict())

@@ -115,10 +115,12 @@ def chat(dialog, messages, stream=True, conversation_id=None, **kwargs):
     prompt_config = dialog.prompt_config
     LogService.save(uuid=conversation_id, var={'comment': 'Prompt Config', 'prompt_config': prompt_config})
     field_map = KnowledgebaseService.get_field_map(dialog.kb_ids)
+    LogService.save(uuid=conversation_id, var={'comment': 'Field Map', 'if try to use': field_map is not None})
     # try to use sql if field mapping is good to go
     if field_map:
         chat_logger.info("Use SQL to retrieval:{}".format(questions[-1]))
         ans = use_sql(questions[-1], field_map, dialog.tenant_id, chat_mdl, prompt_config.get("quote", True))
+        LogService.save(uuid=conversation_id, var={'comment': 'Field map retrieved', 'answer': ans})
         if ans:
             yield ans
             return
@@ -153,6 +155,7 @@ def chat(dialog, messages, stream=True, conversation_id=None, **kwargs):
     knowledges = [ck["content_with_weight"] for ck in kbinfos["chunks"]]
     LogService.save(uuid=conversation_id, var={'comment': 'Knowledge base', 'knowledges': knowledges})
     #self-rag
+    LogService.save(uuid=conversation_id, var={'comment': 'Self-rag', 'enabled': dialog.prompt_config.get('self_rag', False)})
     if dialog.prompt_config.get("self_rag") and not relevant(dialog.tenant_id, dialog.llm_id, questions[-1], knowledges):
         questions[-1] = rewrite(dialog.tenant_id, dialog.llm_id, questions[-1])
         kbinfos = retrievaler.retrieval(" ".join(questions), embd_mdl, dialog.tenant_id, dialog.kb_ids, 1, dialog.top_n,

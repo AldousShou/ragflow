@@ -20,7 +20,7 @@ from copy import deepcopy
 
 from elasticsearch_dsl import Q, Search
 from typing import List, Optional, Dict, Union
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 from rag.settings import es_logger
 from rag.utils import rmSpace
@@ -54,6 +54,10 @@ class Dealer:
         keywords: Optional[List[str]] = None
         group_docs: List[List] = None
 
+        def to_dict(self):
+            result_dict = asdict(self)
+            return {k: v for k, v in result_dict.items() if v is not None}
+
     def _vector(self, txt, emb_mdl, sim=0.8, topk=10):
         qv, c = emb_mdl.encode_queries(txt)
         return {
@@ -65,10 +69,12 @@ class Dealer:
         }
 
     def search(self, req, idxnm, emb_mdl=None, **kwargs):
+        from api.db.services.log_service import LogService
         conversation_id = kwargs.get("conversation_id", 'Unavailable')
 
         qst = req.get("question", "")
         bqry, keywords = self.qryr.question(qst)
+        LogService.save(uuid=conversation_id, var={'comment': 'Search Process 1', 'keywords': keywords})
         def add_filters(bqry):
             nonlocal req
             if req.get("kb_ids"):
@@ -135,7 +141,9 @@ class Dealer:
                 del s["highlight"]
             q_vec = s["knn"]["query_vector"]
         es_logger.info("【Q】: {}".format(json.dumps(s)))
+        LogService.save(uuid=conversation_id, var={'comment': 'Search Process 2', 's': s})
         res = self.es.search(deepcopy(s), idxnm=idxnm, timeout="600s", src=src)
+        LogService.save(uuid=conversation_id, var={'comment': 'Search Process 3, get total es result', 'res': self.es.getTotal(res)})
         es_logger.info("TOTAL: {}".format(self.es.getTotal(res)))
         if self.es.getTotal(res) == 0 and "knn" in s:
             bqry, _ = self.qryr.question(qst, min_match="10%")
@@ -158,15 +166,17 @@ class Dealer:
 
         aggs = self.getAggregation(res, "docnm_kwd")
 
-        return self.SearchResult(
+        search_result = self.SearchResult(
             total=self.es.getTotal(res),
             ids=self.es.getDocIds(res),
-            query_vector=q_vec,
             aggregation=aggs,
             highlight=self.getHighlight(res),
             field=self.getFields(res, src),
             keywords=list(kwds)
         )
+        LogService.save(uuid=conversation_id, var={'comment': 'Search Process 4', 'search result': search_result.to_dict()})
+        search_result.query_vector = q_vec
+        return search_result
 
     def getAggregation(self, res, g):
         if not "aggregations" in res or "aggs_" + g not in res["aggregations"]:
@@ -367,6 +377,7 @@ class Dealer:
                "similarity": similarity_threshold,
                "available_int": 1}
         LogService.save(uuid=conversation_id, var={'comment': 'Fetch request', 'feq': req})
+        LogService.save(uuid=conversation_id, var={'comment': 'Fetch request 2', 'tenant_id': tenant_id})
         sres = self.search(req, index_name(tenant_id), embd_mdl, conversation_id=conversation_id)
         # LogService.save(uuid=conversation_id, var=json.dumps({'comment': 'Fetch response', 'search result': sres}))
         # search result (sres) is not JSON serializable
