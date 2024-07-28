@@ -158,6 +158,7 @@ def chat(dialog, messages, stream=True, conversation_id=None, **kwargs):
     LogService.save(uuid=conversation_id, var={'comment': 'Self-rag', 'enabled': dialog.prompt_config.get('self_rag', False)})
     if dialog.prompt_config.get("self_rag") and not relevant(dialog.tenant_id, dialog.llm_id, questions[-1], knowledges):
         questions[-1] = rewrite(dialog.tenant_id, dialog.llm_id, questions[-1])
+        LogService.save(uuid=conversation_id, var={'comment': 'Self-rag updated question', 'question': questions[-1]})
         kbinfos = retrievaler.retrieval(" ".join(questions), embd_mdl, dialog.tenant_id, dialog.kb_ids, 1, dialog.top_n,
                                         dialog.similarity_threshold,
                                         dialog.vector_similarity_weight,
