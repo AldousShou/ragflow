@@ -205,6 +205,9 @@ CHECK_NODES_IDENTITY = False
 
 retrievaler = search.Dealer(ELASTICSEARCH)
 
+# rag setting
+FORCE_SELF_RAG = True
+
 
 class CustomEnum(Enum):
     @classmethod
