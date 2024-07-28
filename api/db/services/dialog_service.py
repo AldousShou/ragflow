@@ -23,7 +23,7 @@ from api.db.db_models import Dialog, Conversation
 from api.db.services.common_service import CommonService
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.llm_service import LLMService, TenantLLMService, LLMBundle
-from api.settings import chat_logger, retrievaler
+from api.settings import chat_logger, retrievaler, FORCE_SELF_RAG
 from rag.app.resume import forbidden_select_fields4resume
 from rag.nlp import keyword_extraction
 from rag.nlp.search import index_name
@@ -156,7 +156,8 @@ def chat(dialog, messages, stream=True, conversation_id=None, **kwargs):
     LogService.save(uuid=conversation_id, var={'comment': 'Knowledge base', 'knowledges': knowledges})
     #self-rag
     LogService.save(uuid=conversation_id, var={'comment': 'Self-rag', 'enabled': dialog.prompt_config.get('self_rag', False)})
-    if dialog.prompt_config.get("self_rag") and not relevant(dialog.tenant_id, dialog.llm_id, questions[-1], knowledges):
+    if ((dialog.prompt_config.get("self_rag") and not relevant(dialog.tenant_id, dialog.llm_id, questions[-1], knowledges)) or
+        dialog.prompt_config.get('self_rag') and FORCE_SELF_RAG):
         questions[-1] = rewrite(dialog.tenant_id, dialog.llm_id, questions[-1])
         LogService.save(uuid=conversation_id, var={'comment': 'Self-rag updated question', 'question': questions[-1]})
         kbinfos = retrievaler.retrieval(" ".join(questions), embd_mdl, dialog.tenant_id, dialog.kb_ids, 1, dialog.top_n,
