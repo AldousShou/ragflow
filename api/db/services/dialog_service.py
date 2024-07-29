@@ -169,6 +169,7 @@ def chat(dialog, messages, stream=True, conversation_id=None, **kwargs):
                                         top=dialog.top_k, aggs=False, rerank_mdl=rerank_mdl,
                                         conversation_id=conversation_id)
         knowledges = [ck["content_with_weight"] for ck in kbinfos["chunks"]]
+        LogService.save(uuid=conversation_id, var={'comment': 'Knowledge base (self-rag)', 'knowledges': knowledges})
 
     chat_logger.info(
         "{}->{}".format(" ".join(questions), "\n->".join(knowledges)))
