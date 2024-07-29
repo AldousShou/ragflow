@@ -25,37 +25,9 @@ from api.utils.file_utils import get_project_base_directory
 
 class Dealer:
     def __init__(self):
-        self.stop_words = set(["请问",
-                               "您",
-                               "你",
-                               "我",
-                               "他",
-                               "是",
-                               "的",
-                               "就",
-                               "有",
-                               "于",
-                               "及",
-                               "即",
-                               "在",
-                               "为",
-                               "最",
-                               "有",
-                               "从",
-                               "以",
-                               "了",
-                               "将",
-                               "与",
-                               "吗",
-                               "吧",
-                               "中",
-                               "#",
-                               "什么",
-                               "怎么",
-                               "哪个",
-                               "哪些",
-                               "啥",
-                               "相关"])
+        path = os.path.join(get_project_base_directory(), "rag/nlp", "stop_words.txt")
+        with open(path, "r") as f:
+            self.stop_words = f.read().splitlines()
 
         def load_dict(fnm):
             res = {}
