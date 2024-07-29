@@ -315,9 +315,7 @@ class Dealer:
     def rerank(self, sres, query, tkweight=0.3,
                vtweight=0.7, cfield="content_ltks"):
         _, keywords = self.qryr.question(query)
-        ins_embd = [
-            Dealer.trans2floats(
-                sres.field[i].get("q_%d_vec" % len(sres.query_vector), "\t".join(["0"] * len(sres.query_vector)))) for i in sres.ids]
+        ins_embd = [sres.field[i].get("vector", [0.0, ] * len(sres.query_vector)) for i in sres.ids]
         if not ins_embd:
             return [], [], []
 
@@ -382,6 +380,8 @@ class Dealer:
         # LogService.save(uuid=conversation_id, var=json.dumps({'comment': 'Fetch response', 'search result': sres}))
         # search result (sres) is not JSON serializable
 
+        for _field in sres.field:
+            sres.field[_field]['vector'] = embd_mdl.encode_queries(sres.field[_field]['content_ltks'])[0]
         if rerank_mdl:
             sim, tsim, vsim = self.rerank_by_model(rerank_mdl,
                 sres, question, 1 - vector_similarity_weight, vector_similarity_weight)
@@ -421,7 +421,7 @@ class Dealer:
                 "similarity": sim[i],
                 "vector_similarity": vsim[i],
                 "term_similarity": tsim[i],
-                "vector": self.trans2floats(sres.field[id].get("q_%d_vec" % dim, "\t".join(["0"] * dim))),
+                "vector": sres.field[id].get("vector", [0.0, ] * dim),
                 "positions": sres.field[id].get("position_int", "").split("\t")
             }
             if len(d["positions"]) % 5 == 0:
