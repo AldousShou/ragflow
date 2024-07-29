@@ -396,8 +396,8 @@ class Dealer:
         dim = len(sres.query_vector)
         start_idx = (page - 1) * page_size
         for i in idx:
-            if sim[i] < similarity_threshold:
-                break
+            if sim[i] < similarity_threshold:  # 这个判断也需要改，网页端精度不够
+                continue  # 这里 break 需要修改
             ranks["total"] += 1
             start_idx -= 1
             if start_idx >= 0:
