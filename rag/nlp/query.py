@@ -196,20 +196,35 @@ class EsQueryer:
 
 def extract_subquestions(question: str, chat_model: 'LLMBundle') -> List[str]:
     prompt = f"""
-    The query may contain multiple questions. If it only contains one question, Please output the question directly.
-    Else, please split the query into multiple questions, one question per line, and the question should be clear.
-    Answer in the language the query uses. 
-    Please make sure everybody who see the question can understand what it means.
-    Do not output any text that not related to the question.
+    The input may contain one or more questions. If there's only one question, output it as is. 
+    Otherwise, break down the input into clear and concise sub-questions, listing each on a separate line. 
+    Ensure that each question is easy to understand. 
+    Answer in the same language as the input. 
+    Avoid including any extraneous text.
+    Your task is to break down the question, **NOT TO SOLVE IT**!
     
-    Query:
+    Example:
+    Input:
+    <query>
+    What is the colour of the sky? How about the sun?
+    </query>
+    
+    Output:
+    What is the colour of the sky?
+    What is the colour of the sun?
+    
+    Input:
     <query>
     {question}
     </query>
     
-    Answer:
+    Output:
     """
     questions = chat_model.chat(prompt, [{"role": "user", "content": prompt}], {"temperature": 0.0})
+    if isinstance(questions, list) and len(questions) == 1:
+        questions = questions[0]
     if isinstance(questions, str):
-        questions = [questions]
+        questions = questions.replace("\n\n", "\n")
+        questions = questions.replace("\n\n", "\n")
+        questions = questions.split("\n")
     return questions

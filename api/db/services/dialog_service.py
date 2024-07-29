@@ -188,20 +188,22 @@ def chat(dialog, messages, stream=True, conversation_id=None, **kwargs):
             if not len(all_kbinfos):
                 all_kbinfos.update(kbinfos)
             else:
-                all_kbinfos['chunks'].extend(kbinfos)
-                all_kbinfos['doc_aggs'].extend(all_knowledges)
+                all_kbinfos['chunks'].extend(kbinfos['chunks'])
+                all_kbinfos['doc_aggs'].extend(kbinfos['doc_aggs'])
+            pass
         all_kbinfos['total'] = len(all_kbinfos['chunks'])
         all_kbinfos['doc_aggs'] = sorted(all_kbinfos['doc_aggs'], key=lambda kb: kb['doc_id'])
         kbinfos = deepcopy(all_kbinfos)
         kbinfos['doc_aggs'] = []
         for kbinfo in all_kbinfos['doc_aggs']:
-            if len(kbinfo['doc_aggs']) == 0:
+            if len(kbinfos['doc_aggs']) == 0:
                 kbinfos['doc_aggs'].append(kbinfo)
                 continue
             if kbinfos['doc_aggs'][-1]['doc_id'] == kbinfo['doc_id']:
                 kbinfos['doc_aggs'][-1]['count'] += kbinfo['count']
                 continue
             kbinfos['doc_aggs'].append(kbinfo)
+        knowledges = [ck["content_with_weight"] for ck in kbinfos["chunks"]]
         del all_kbinfos
 
     # knowledge fetched
@@ -218,7 +220,7 @@ def chat(dialog, messages, stream=True, conversation_id=None, **kwargs):
     msg = [{"role": "system", "content": prompt_config["system"].format(**kwargs)}]
     msg.extend([{"role": m["role"], "content": m["content"]}
                 for m in messages if m["role"] != "system"])
-    used_token_count, msg = message_fit_in(msg, int(max_tokens * 0.97))
+    used_token_count, msg = message_fit_in(msg, 16000)  # token 设置成 16k 大小
     assert len(msg) >= 2, f"message_fit_in has bug: {msg}"
 
     if "max_tokens" in gen_conf:
