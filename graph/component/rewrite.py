@@ -35,13 +35,9 @@ class RewriteQuestionParam(GenerateParam):
 
     def get_prompt(self):
         self.prompt = """
-        You are an expert at query expansion to generate a paraphrasing of a question.
-        I can't retrieval relevant information from the knowledge base by using user's question directly.     
-        You need to expand or paraphrase user's question by multiple ways such as using synonyms words/phrase, 
-        writing the abbreviation in its entirety, adding some extra descriptions or explanations, 
-        changing the way of expression, translating the original question into another language (English/Chinese), etc. 
-        And return 5 versions of question and one is from translation.
-        Just list the question. No other words are needed.
+        你是通过查询扩展来生成问题释义的专家。我无法直接使用用户的问题从知识库中检索相关信息。
+        你需要通过多种方式扩展或解释用户的问题，例如使用同义词/短语，完整地写出缩写，添加一些额外的描述或解释，改变表达方式、将原问题翻译成另一种语言（英语/中文）等。 
+        并返回 5 个版本的问题，其中一个来自翻译。只需列出问题即可。无需其他言语。
         """
         return self.prompt
 
