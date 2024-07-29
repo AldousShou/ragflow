@@ -110,7 +110,7 @@ class EsQueryer:
                     sm = []
 
                 keywords.append(re.sub(r"[ \\\"']+", "", tk))
-                if len(keywords) >= 12: break
+                # if len(keywords) >= 12: break
 
                 tk_syns = self.syn.lookup(tk)
                 tk = EsQueryer.subSpecialChar(tk)
