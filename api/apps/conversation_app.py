@@ -174,5 +174,6 @@ def completion():
                 break
             return get_json_result(data=answer)
     except Exception as e:
+        raise e
         return server_error_response(e)
 
