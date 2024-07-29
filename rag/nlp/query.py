@@ -19,6 +19,8 @@ import math
 import re
 import logging
 import copy
+from typing import List
+
 from elasticsearch_dsl import Q
 
 from rag.nlp import rag_tokenizer, term_weight, synonym
@@ -190,3 +192,24 @@ class EsQueryer:
         # for k, v in dtwt.items():
         #    d += v * v
         return s / q / max(1, math.sqrt(math.log10(max(len(qtwt.keys()), len(dtwt.keys())))))# math.sqrt(q) / math.sqrt(d)
+
+
+def extract_subquestions(question: str, chat_model: 'LLMBundle') -> List[str]:
+    prompt = f"""
+    The query may contain multiple questions. If it only contains one question, Please output the question directly.
+    Else, please split the query into multiple questions, one question per line, and the question should be clear.
+    Answer in the language the query uses. 
+    Please make sure everybody who see the question can understand what it means.
+    Do not output any text that not related to the question.
+    
+    Query:
+    <query>
+    {question}
+    </query>
+    
+    Answer:
+    """
+    questions = chat_model.chat(prompt, [{"role": "user", "content": prompt}], {"temperature": 0.0})
+    if isinstance(questions, str):
+        questions = [questions]
+    return questions

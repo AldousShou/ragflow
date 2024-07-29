@@ -26,6 +26,7 @@ from api.db.services.llm_service import LLMService, TenantLLMService, LLMBundle
 from api.settings import chat_logger, retrievaler, FORCE_SELF_RAG
 from rag.app.resume import forbidden_select_fields4resume
 from rag.nlp import keyword_extraction
+from rag.nlp.query import extract_subquestions
 from rag.nlp.search import index_name
 from rag.utils import rmSpace, num_tokens_from_string, encoder
 from api.utils.file_utils import get_project_base_directory
@@ -139,37 +140,71 @@ def chat(dialog, messages, stream=True, conversation_id=None, **kwargs):
         rerank_mdl = LLMBundle(dialog.tenant_id, LLMType.RERANK, dialog.rerank_id)
     LogService.save(uuid=conversation_id, var={'comment': 'Reranking Model', 'use': rerank_mdl is not None})
 
-    for _ in range(len(questions) // 2):
-        questions.append(questions[-1])
     if "knowledge" not in [p["key"] for p in prompt_config["parameters"]]:
         kbinfos = {"total": 0, "chunks": [], "doc_aggs": []}
+        knowledges = []
     else:
-        if prompt_config.get("keyword", False):
-            kw_extraction = keyword_extraction(chat_mdl, questions[-1])
-            LogService.save(uuid=conversation_id, var={'comment': 'LLM keyword extraction', 'keywords': kw_extraction})
-            questions[-1] += kw_extraction
-        kbinfos = retrievaler.retrieval(" ".join(questions), embd_mdl, dialog.tenant_id, dialog.kb_ids, 1, dialog.top_n,
-                                        dialog.similarity_threshold,
-                                        dialog.vector_similarity_weight,
-                                        doc_ids=kwargs["doc_ids"].split(",") if "doc_ids" in kwargs else None,
-                                        top=dialog.top_k, aggs=False, rerank_mdl=rerank_mdl,
-                                        conversation_id=conversation_id)
-    knowledges = [ck["content_with_weight"] for ck in kbinfos["chunks"]]
-    LogService.save(uuid=conversation_id, var={'comment': 'Knowledge base', 'knowledges': knowledges})
-    #self-rag
-    LogService.save(uuid=conversation_id, var={'comment': 'Self-rag', 'enabled': dialog.prompt_config.get('self_rag', False)})
-    if ((dialog.prompt_config.get("self_rag") and not relevant(dialog.tenant_id, dialog.llm_id, questions[-1], knowledges)) or
-        dialog.prompt_config.get('self_rag') and FORCE_SELF_RAG):
-        questions[-1] = rewrite(dialog.tenant_id, dialog.llm_id, questions[-1])
-        LogService.save(uuid=conversation_id, var={'comment': 'Self-rag updated question', 'question': questions[-1]})
-        kbinfos = retrievaler.retrieval(" ".join(questions), embd_mdl, dialog.tenant_id, dialog.kb_ids, 1, dialog.top_n,
-                                        dialog.similarity_threshold,
-                                        dialog.vector_similarity_weight,
-                                        doc_ids=kwargs["doc_ids"].split(",") if "doc_ids" in kwargs else None,
-                                        top=dialog.top_k, aggs=False, rerank_mdl=rerank_mdl,
-                                        conversation_id=conversation_id)
-        knowledges = [ck["content_with_weight"] for ck in kbinfos["chunks"]]
+        # to extract questions from a single query
+        subquestions = extract_subquestions(questions[-1], chat_mdl)
+        LogService.save(uuid=conversation_id, var={'comment': 'Subquestions extracted', 'len': len(subquestions),
+                                                   'subquestions': subquestions})
+        raw_questions = deepcopy(questions)
+        all_knowledges = []
+        all_kbinfos = {}
+        for subquestion in subquestions:
+            LogService.save(uuid=conversation_id, var={'comment': 'Subquestion', 'subquestion': subquestion})
+            questions = deepcopy(raw_questions)
+            for _ in range(len(questions) // 2):
+                questions.append(subquestion)
 
+            if prompt_config.get("keyword", False):
+                kw_extraction = keyword_extraction(chat_mdl, questions[-1])
+                LogService.save(uuid=conversation_id, var={'comment': 'LLM keyword extraction', 'keywords': kw_extraction})
+                questions[-1] += kw_extraction
+
+            kbinfos = retrievaler.retrieval(" ".join(questions), embd_mdl, dialog.tenant_id, dialog.kb_ids, 1, dialog.top_n,
+                                            dialog.similarity_threshold,
+                                            dialog.vector_similarity_weight,
+                                            doc_ids=kwargs["doc_ids"].split(",") if "doc_ids" in kwargs else None,
+                                            top=dialog.top_k, aggs=False, rerank_mdl=rerank_mdl,
+                                            conversation_id=conversation_id)
+            knowledges = [ck["content_with_weight"] for ck in kbinfos["chunks"]]
+            LogService.save(uuid=conversation_id, var={'comment': 'Knowledge base', 'knowledges': knowledges})
+            #self-rag
+            LogService.save(uuid=conversation_id, var={'comment': 'Self-rag', 'enabled': dialog.prompt_config.get('self_rag', False)})
+            if ((dialog.prompt_config.get("self_rag") and not relevant(dialog.tenant_id, dialog.llm_id, questions[-1], knowledges)) or
+                dialog.prompt_config.get('self_rag') and FORCE_SELF_RAG):
+                questions[-1] = rewrite(dialog.tenant_id, dialog.llm_id, questions[-1])
+                LogService.save(uuid=conversation_id, var={'comment': 'Self-rag updated question', 'question': questions[-1]})
+                kbinfos = retrievaler.retrieval(" ".join(questions), embd_mdl, dialog.tenant_id, dialog.kb_ids, 1, dialog.top_n,
+                                                dialog.similarity_threshold,
+                                                dialog.vector_similarity_weight,
+                                                doc_ids=kwargs["doc_ids"].split(",") if "doc_ids" in kwargs else None,
+                                                top=dialog.top_k, aggs=False, rerank_mdl=rerank_mdl,
+                                                conversation_id=conversation_id)
+                knowledges = [ck["content_with_weight"] for ck in kbinfos["chunks"]]
+                LogService.save(uuid=conversation_id, var={'comment': 'Knowledge base (self-rag)', 'knowledges': knowledges})
+            # all_knowledges.extend(knowledges)
+            if not len(all_kbinfos):
+                all_kbinfos.update(kbinfos)
+            else:
+                all_kbinfos['chunks'].extend(kbinfos)
+                all_kbinfos['doc_aggs'].extend(all_knowledges)
+        all_kbinfos['total'] = len(all_kbinfos['chunks'])
+        all_kbinfos['doc_aggs'] = sorted(all_kbinfos['doc_aggs'], key=lambda kb: kb['doc_id'])
+        kbinfos = deepcopy(all_kbinfos)
+        kbinfos['doc_aggs'] = []
+        for kbinfo in all_kbinfos['doc_aggs']:
+            if len(kbinfo['doc_aggs']) == 0:
+                kbinfos['doc_aggs'].append(kbinfo)
+                continue
+            if kbinfos['doc_aggs'][-1]['doc_id'] == kbinfo['doc_id']:
+                kbinfos['doc_aggs'][-1]['count'] += kbinfo['count']
+                continue
+            kbinfos['doc_aggs'].append(kbinfo)
+        del all_kbinfos
+
+    # knowledge fetched
     chat_logger.info(
         "{}->{}".format(" ".join(questions), "\n->".join(knowledges)))
 
