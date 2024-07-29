@@ -145,7 +145,9 @@ def chat(dialog, messages, stream=True, conversation_id=None, **kwargs):
         kbinfos = {"total": 0, "chunks": [], "doc_aggs": []}
     else:
         if prompt_config.get("keyword", False):
-            questions[-1] += keyword_extraction(chat_mdl, questions[-1])
+            kw_extraction = keyword_extraction(chat_mdl, questions[-1])
+            LogService.save(uuid=conversation_id, var={'comment': 'LLM keyword extraction', 'keywords': kw_extraction})
+            questions[-1] += kw_extraction
         kbinfos = retrievaler.retrieval(" ".join(questions), embd_mdl, dialog.tenant_id, dialog.kb_ids, 1, dialog.top_n,
                                         dialog.similarity_threshold,
                                         dialog.vector_similarity_weight,
